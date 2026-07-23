@@ -1,2 +1,0 @@
-# JT-product
-product design
