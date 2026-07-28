@@ -147,10 +147,14 @@
       </div>
     </div>
 
-    <div class="stats-row">
+    <div class="stats-row" style="grid-template-columns: repeat(6, 1fr);">
       <div class="stat-card" style="position: relative;">
         <div class="stat-label">采购下单次数<span class="info-icon">?</span><span class="info-tooltip">统计下单时间在统计时间范围内的采购订单数</span></div>
         <div class="stat-value">{{ statistics.createdOrders }}</div>
+      </div>
+      <div class="stat-card" style="position: relative;">
+        <div class="stat-label">下单款数<span class="info-icon">?</span><span class="info-tooltip">采购订单的下单款号去重计数</span></div>
+        <div class="stat-value">{{ statistics.styleCount }}</div>
       </div>
       <div class="stat-card" style="position: relative;">
         <div class="stat-label">应交采购单数<span class="info-icon">?</span><span class="info-tooltip">统计合同交货时间或约定到货时间在统计时间范围内的采购订单数</span></div>
@@ -161,9 +165,13 @@
         <div class="stat-value success">{{ statistics.onTimeCount }}</div>
       </div>
       <div class="stat-card rate" style="position: relative;">
-          <div class="stat-label">准交率<span class="info-icon">?</span><span class="info-tooltip">准交率=准交采购单数 / 应交采购单数 × 100%</span></div>
-          <div class="stat-value rate">{{ statistics.onTimeRate || '-' }}<span class="stat-unit" v-if="statistics.onTimeRate">%</span></div>
-        </div>
+        <div class="stat-label">准交率<span class="info-icon">?</span><span class="info-tooltip">准交率=准交采购单数 / 应交采购单数 × 100%</span></div>
+        <div class="stat-value rate">{{ statistics.onTimeRate || '-' }}<span class="stat-unit" v-if="statistics.onTimeRate">%</span></div>
+      </div>
+      <div class="stat-card" style="position: relative;">
+        <div class="stat-label">平均交期天数<span class="info-icon">?</span><span class="info-tooltip">采购订单的实际交货天数求平均</span></div>
+        <div class="stat-value">{{ statistics.avgDeliveryDays || '-' }}<span class="stat-unit" v-if="statistics.avgDeliveryDays">天</span></div>
+      </div>
     </div>
 
     <div class="chart-card" style="margin-bottom: 20px;">
@@ -214,6 +222,19 @@
             <td class="text-center text-success">{{ item.onTimeRate || '-' }}</td>
             <td class="text-center">{{ item.avgDeliveryDays || '-' }}</td>
           </tr>
+          <tr style="background: #f5f7fa; font-weight: 600;">
+            <td>合计</td>
+            <td class="text-center">{{ supplierTotalStats.createdOrders }}</td>
+            <td class="text-center">{{ supplierTotalStats.styleCount }}</td>
+            <td class="text-center">{{ supplierTotalStats.orderTotalQuantity }}</td>
+            <td class="text-center">{{ supplierTotalStats.totalOrders }}</td>
+            <td class="text-center">{{ supplierTotalStats.totalQuantity }}</td>
+            <td class="text-center text-success">{{ supplierTotalStats.onTimeCount }}</td>
+            <td class="text-center text-success">{{ supplierTotalStats.actualQuantity }}</td>
+            <td class="text-center text-danger">{{ supplierTotalStats.remainingQuantity }}</td>
+            <td class="text-center text-success">{{ supplierTotalStats.onTimeRate || '-' }}</td>
+            <td class="text-center">{{ supplierTotalStats.avgDeliveryDays || '-' }}</td>
+          </tr>
         </tbody>
       </table>
 
@@ -246,6 +267,19 @@
             <td class="text-center text-danger">{{ item.remainingQuantity }}</td>
             <td class="text-center text-success">{{ item.onTimeRate || '-' }}</td>
             <td class="text-center">{{ item.avgDeliveryDays || '-' }}</td>
+          </tr>
+          <tr style="background: #f5f7fa; font-weight: 600;">
+            <td>合计</td>
+            <td class="text-center">{{ timeTotalStats.createdOrders }}</td>
+            <td class="text-center">{{ timeTotalStats.styleCount }}</td>
+            <td class="text-center">{{ timeTotalStats.orderTotalQuantity }}</td>
+            <td class="text-center">{{ timeTotalStats.totalOrders }}</td>
+            <td class="text-center">{{ timeTotalStats.totalQuantity }}</td>
+            <td class="text-center text-success">{{ timeTotalStats.onTimeCount }}</td>
+            <td class="text-center text-success">{{ timeTotalStats.actualQuantity }}</td>
+            <td class="text-center text-danger">{{ timeTotalStats.remainingQuantity }}</td>
+            <td class="text-center text-success">{{ timeTotalStats.onTimeRate || '-' }}</td>
+            <td class="text-center">{{ timeTotalStats.avgDeliveryDays || '-' }}</td>
           </tr>
         </tbody>
       </table>
@@ -490,11 +524,31 @@
           const total = filteredOrders.value.length
           const onTime = filteredOrders.value.filter(o => o.status === '准交').length
           const created = orders.value.length
+          const styleNumbers = new Set()
+          let orderTotalQuantity = 0
+          let totalQuantity = 0
+          let actualQuantity = 0
+          let totalDeliveryDays = 0
+          
+          filteredOrders.value.forEach(order => {
+            if (order.styleNumber) styleNumbers.add(order.styleNumber)
+            orderTotalQuantity += order.quantity
+            totalQuantity += order.quantity
+            actualQuantity += order.actualQuantity
+            if (order.deliveryDays) totalDeliveryDays += order.deliveryDays
+          })
+          
           return {
             createdOrders: created,
             totalOrders: total,
             onTimeCount: onTime,
-            onTimeRate: total > 0 ? ((onTime / total) * 100).toFixed(1) : ''
+            onTimeRate: total > 0 ? ((onTime / total) * 100).toFixed(1) : '',
+            styleCount: styleNumbers.size,
+            orderTotalQuantity: orderTotalQuantity,
+            totalQuantity: totalQuantity,
+            actualQuantity: actualQuantity,
+            remainingQuantity: totalQuantity - actualQuantity,
+            avgDeliveryDays: total > 0 ? (totalDeliveryDays / total).toFixed(1) : ''
           }
         })
 
@@ -622,6 +676,64 @@
             delayedRate: s.totalOrders > 0 ? ((s.delayedCount / s.totalOrders) * 100).toFixed(1) : '',
             undeliveredRate: s.totalOrders > 0 ? ((s.undeliveredCount / s.totalOrders) * 100).toFixed(1) : ''
           })).sort((a, b) => parseFloat(b.onTimeRate) - parseFloat(a.onTimeRate))
+        })
+
+        const supplierTotalStats = computed(() => {
+          const stats = supplierStats.value
+          const createdOrders = stats.reduce((sum, s) => sum + s.createdOrders, 0)
+          const orderTotalQuantity = stats.reduce((sum, s) => sum + s.orderTotalQuantity, 0)
+          const totalOrders = stats.reduce((sum, s) => sum + s.totalOrders, 0)
+          const onTimeCount = stats.reduce((sum, s) => sum + s.onTimeCount, 0)
+          const totalQuantity = stats.reduce((sum, s) => sum + s.totalQuantity, 0)
+          const actualQuantity = stats.reduce((sum, s) => sum + s.actualQuantity, 0)
+          const remainingQuantity = stats.reduce((sum, s) => sum + s.remainingQuantity, 0)
+          const styleNumbers = new Set()
+          let totalDeliveryDays = 0
+          stats.forEach(s => {
+            if (s.styleNumbers) s.styleNumbers.forEach(n => styleNumbers.add(n))
+            if (s.totalDeliveryDays) totalDeliveryDays += s.totalDeliveryDays
+          })
+          return {
+            createdOrders,
+            orderTotalQuantity,
+            totalOrders,
+            onTimeCount,
+            totalQuantity,
+            actualQuantity,
+            remainingQuantity,
+            styleCount: styleNumbers.size,
+            onTimeRate: totalOrders > 0 ? ((onTimeCount / totalOrders) * 100).toFixed(1) : '',
+            avgDeliveryDays: totalOrders > 0 ? (totalDeliveryDays / totalOrders).toFixed(1) : ''
+          }
+        })
+
+        const timeTotalStats = computed(() => {
+          const stats = currentTab.value === 'daily' ? dailyStats.value : monthlyStats.value
+          const createdOrders = stats.reduce((sum, s) => sum + s.createdOrders, 0)
+          const orderTotalQuantity = stats.reduce((sum, s) => sum + s.orderTotalQuantity, 0)
+          const totalOrders = stats.reduce((sum, s) => sum + s.totalOrders, 0)
+          const onTimeCount = stats.reduce((sum, s) => sum + s.onTimeCount, 0)
+          const totalQuantity = stats.reduce((sum, s) => sum + s.totalQuantity, 0)
+          const actualQuantity = stats.reduce((sum, s) => sum + s.actualQuantity, 0)
+          const remainingQuantity = stats.reduce((sum, s) => sum + s.remainingQuantity, 0)
+          const styleNumbers = new Set()
+          let totalDeliveryDays = 0
+          stats.forEach(s => {
+            if (s.styleNumbers) s.styleNumbers.forEach(n => styleNumbers.add(n))
+            if (s.totalDeliveryDays) totalDeliveryDays += s.totalDeliveryDays
+          })
+          return {
+            createdOrders,
+            orderTotalQuantity,
+            totalOrders,
+            onTimeCount,
+            totalQuantity,
+            actualQuantity,
+            remainingQuantity,
+            styleCount: styleNumbers.size,
+            onTimeRate: totalOrders > 0 ? ((onTimeCount / totalOrders) * 100).toFixed(1) : '',
+            avgDeliveryDays: totalOrders > 0 ? (totalDeliveryDays / totalOrders).toFixed(1) : ''
+          }
         })
 
         const supplierTotalPages = computed(() => {
@@ -941,7 +1053,7 @@
         return {
           timeDimension, selectedDate, selectedYear, dateRangeStr, monthRangeStr, selectedCategories, categories,
           dateLabel, orders, filteredOrders, statistics, dailyStats, monthlyStats, totalPages,
-          supplierStats, paginatedSupplierStats, paginatedTimeStats, currentPagination, currentTab, tabs,
+          supplierStats, supplierTotalStats, timeTotalStats, paginatedSupplierStats, paginatedTimeStats, currentPagination, currentTab, tabs,
           supplierCurrentPage, supplierPageSize, currentPage, pageSize, trendChart, showCategoryDropdown, updateTime, selectedSupplier, supplierSearch, showSupplierDropdown, filteredSupplierList,
           handleFilter, refreshData, exportCurrentTable, switchTab, prevPage, nextPage, resetPage, toggleCategory, selectSupplier, filterSuppliers, setDefaultDateValues
         }
