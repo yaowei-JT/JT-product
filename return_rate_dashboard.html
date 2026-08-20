@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>10天退货率看板</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; background: #f0f2f5; color: #333; }
+
+  .top-nav { height: 56px; background: #fff; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; padding: 0 24px; position: sticky; top: 0; z-index: 100; }
+  .logo { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 600; color: #1a1a1a; min-width: 200px; }
+  .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #ff6b6b, #ff8e53); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; }
+  .nav-menu { display: flex; gap: 4px; flex: 1; }
+  .nav-item { padding: 0 16px; height: 56px; display: flex; align-items: center; font-size: 14px; color: #666; cursor: pointer; border-bottom: 2px solid transparent; }
+  .nav-item:hover { color: #ff6b35; }
+  .nav-item.active { color: #ff6b35; border-bottom-color: #ff6b35; font-weight: 500; }
+  .top-actions { display: flex; align-items: center; gap: 12px; }
+  .action-btn { padding: 6px 12px; font-size: 13px; color: #666; background: #f5f5f5; border-radius: 4px; cursor: pointer; border: none; white-space: nowrap; }
+  .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 13px; font-weight: 500; }
+
+  .layout { display: flex; min-height: calc(100vh - 56px); }
+  .side-menu { width: 170px; background: #fff; border-right: 1px solid #e8e8e8; padding: 16px 0; flex-shrink: 0; }
+  .side-group-title { padding: 8px 20px; font-size: 12px; color: #999; font-weight: 500; letter-spacing: 1px; }
+  .side-item { padding: 10px 20px; font-size: 14px; color: #666; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+  .side-item:hover { background: #f5f5f5; color: #ff6b35; }
+  .side-item.active { background: #fff5f2; color: #ff6b35; font-weight: 500; border-right: 3px solid #ff6b35; }
+  .side-item .dot { width: 6px; height: 6px; border-radius: 50%; background: #ccc; flex-shrink: 0; }
+  .side-item.active .dot { background: #ff6b35; }
+
+  .main-content { flex: 1; padding: 20px; min-width: 0; }
+
+  .filter-bar { background: #fff; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+  .filter-title { font-size: 16px; font-weight: 600; color: #1a1a1a; display: flex; align-items: center; gap: 8px; }
+  .filter-title::before { content: ''; width: 3px; height: 16px; background: #ff6b35; border-radius: 2px; }
+  .filter-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .filter-label { font-size: 13px; color: #666; }
+  .filter-search { padding: 6px 12px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 13px; width: 180px; }
+  .filter-select { padding: 6px 28px 6px 12px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 13px; color: #333; background: #fff; appearance: none; cursor: pointer; }
+
+  /* 多选下拉 */
+  .ms-wrap { position: relative; display: inline-block; }
+  .ms-trigger { min-width: 160px; padding: 6px 28px 6px 12px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 13px; color: #333; background: #fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>") no-repeat right 10px center; cursor: pointer; height: 32px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ms-trigger.active { border-color: #ff6b35; box-shadow: 0 0 0 2px rgba(255,107,53,0.12); }
+  .ms-trigger .placeholder { color: #bfbfbf; }
+  .ms-trigger .count { color: #ff6b35; font-weight: 500; }
+  .ms-panel { display: none; position: absolute; top: calc(100% + 4px); left: 0; min-width: 100%; width: max-content; background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); padding: 6px 0; z-index: 50; max-height: 240px; overflow-y: auto; }
+  .ms-panel.show { display: block; }
+  .ms-option { display: flex; align-items: center; gap: 8px; padding: 7px 12px; font-size: 13px; color: #333; cursor: pointer; white-space: nowrap; }
+  .ms-option:hover { background: #fff5f2; color: #ff6b35; }
+  .ms-option input { margin: 0; accent-color: #ff6b35; cursor: pointer; }
+  .ms-footer { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; border-top: 1px solid #f0f0f0; margin-top: 2px; }
+  .ms-footer a { font-size: 12px; color: #ff6b35; cursor: pointer; }
+  .ms-footer a.disabled { color: #ccc; cursor: not-allowed; }
+  .btn-primary { padding: 6px 16px; background: #ff6b35; color: #fff; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
+  .btn-ghost { padding: 6px 16px; background: transparent; color: #666; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 13px; cursor: pointer; }
+
+  .stat-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+  .stat-card { background: #fff; border-radius: 8px; padding: 24px 28px; position: relative; overflow: hidden; border: 1px solid #f0f0f0; }
+  .stat-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+  .stat-card.orange::before { background: linear-gradient(180deg, #ff6b35, #ffa07a); }
+  .stat-card.blue::before { background: linear-gradient(180deg, #1890ff, #69c0ff); }
+  .stat-card.red::before { background: linear-gradient(180deg, #ff4d4f, #ff7875); }
+  .stat-card::after { content: ''; position: absolute; right: -40px; top: -40px; width: 160px; height: 160px; border-radius: 50%; opacity: 0.05; }
+  .stat-card.orange::after { background: #ff6b35; }
+  .stat-card.blue::after { background: #1890ff; }
+  .stat-card.red::after { background: #ff4d4f; }
+  .stat-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .stat-label { font-size: 14px; color: #666; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .stat-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+  .stat-card.orange .stat-icon { background: #fff5f2; color: #ff6b35; }
+  .stat-card.blue .stat-icon { background: #e6f7ff; color: #1890ff; }
+  .stat-card.red .stat-icon { background: #fff1f0; color: #ff4d4f; }
+  .stat-value { font-size: 38px; font-weight: 700; color: #1a1a1a; line-height: 1.1; letter-spacing: -0.5px; }
+  .stat-value .unit { font-size: 16px; color: #999; margin-left: 6px; font-weight: 400; }
+  .stat-divider { height: 1px; background: #f5f5f5; margin: 14px 0; }
+  .stat-desc { font-size: 13px; color: #999; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .stat-desc .hi { color: #ff4d4f; font-weight: 600; }
+  .stat-desc .lo { color: #52c41a; font-weight: 600; }
+  .stat-desc .pct { color: #666; font-weight: 600; }
+
+  .chart-section { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+  .chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .chart-title { font-size: 15px; font-weight: 600; color: #1a1a1a; display: flex; align-items: center; gap: 8px; }
+  .chart-title::before { content: ''; width: 3px; height: 14px; background: #ff6b35; border-radius: 2px; }
+  .chart-container { height: 320px; }
+
+  /* ============ 表格 ============ */
+  .table-section { background: #fff; border-radius: 8px; overflow: hidden; }
+  .table-header-bar { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f0f0f0; }
+  .table-title { font-size: 15px; font-weight: 600; color: #1a1a1a; display: flex; align-items: center; gap: 8px; }
+  .table-title::before { content: ''; width: 3px; height: 14px; background: #ff6b35; border-radius: 2px; }
+  .table-actions { display: flex; gap: 8px; }
+
+  /* 滚动容器 - 关键：overflow-x: auto */
+  .table-scroll { overflow-x: auto; overflow-y: visible; }
+
+  /* 表格基础 - 使用 separate 避免 sticky 穿透 */
+  table.wide { border-collapse: separate; border-spacing: 0; width: max-content; font-size: 12px; }
+
+  /* 表头 */
+  table.wide thead th {
+    background: #fafafa;
+    padding: 10px 8px;
+    text-align: center;
+    font-weight: 500;
+    color: #666;
+    border-bottom: 1px solid #e8e8e8;
+    border-right: 1px solid #f0f0f0;
+    white-space: nowrap;
+  }
+  table.wide thead th.merged { background: #fff5f2; color: #ff6b35; font-weight: 600; }
+  table.wide thead th.highlight-day { background: #fff5f2 !important; color: #333; }
+
+  /* 表体 */
+  table.wide tbody td {
+    padding: 5px 4px;
+    border-bottom: 1px solid #f5f5f5;
+    border-right: 1px solid #f5f5f5;
+    color: #333;
+    text-align: center;
+    white-space: nowrap;
+    background: #fff;
+  }
+
+  /* ===== 固定列 - 只有前两列（按钮+商品信息）固定 ===== */
+  .fc-1 { position: sticky; left: 0; z-index: 3; background: #fff; }
+  .fc-2 { position: sticky; left: 44px; z-index: 3; background: #fff; }
+  /* 固定列表头 */
+  .fth-1 { position: sticky; left: 0; z-index: 20 !important; background: #fafafa; }
+  .fth-2 { position: sticky; left: 44px; z-index: 20 !important; background: #fafafa; }
+
+  /* 固定列右侧阴影分隔线 */
+  .fc-shadow-2::after {
+    content: '';
+    position: absolute;
+    right: -6px;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    background: linear-gradient(to right, rgba(0,0,0,0.04), transparent);
+    pointer-events: none;
+  }
+  .fth-shadow-2::after {
+    content: '';
+    position: absolute;
+    right: -6px;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    background: linear-gradient(to right, rgba(0,0,0,0.04), transparent);
+    pointer-events: none;
+  }
+
+  /* SKU行缩进 */
+  .sku-row td { background: #fcfcfc; }
+  .sku-row td.fc-1, .sku-row td.fc-2 { background: #fcfcfc; }
+  .sku-row:hover td, .sku-row:hover td.fc-1, .sku-row:hover td.fc-2 { background: #f5f5f5 !important; }
+
+  /* 商品行悬停 */
+  .product-row:hover td { background: #fff5f0; }
+  .product-row:hover td.fc-1, .product-row:hover td.fc-2 { background: #fff5f0; }
+
+  /* 展开按钮 */
+  .expand-btn { width: 20px; height: 20px; border-radius: 4px; background: #f0f0f0; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: #666; font-size: 9px; }
+  .expand-btn:hover { background: #fff5f2; color: #ff6b35; }
+
+  /* SPU信息 */
+  .spu-cell { display: flex; align-items: center; gap: 10px; text-align: left; padding-left: 4px; }
+  .spu-img { width: 44px; height: 56px; border-radius: 4px; overflow: hidden; flex-shrink: 0; background: #f5f5f5; }
+  .spu-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .spu-info { text-align: left; min-width: 0; }
+  .spu-info .spu-name { color: #333; font-size: 12px; margin-bottom: 4px; max-width: 210px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  .spu-info .spu-code { color: #ff6b35; font-size: 11px; margin-bottom: 2px; font-family: 'Menlo','Monaco','Consolas',monospace; }
+  .spu-info .spu-id { color: #999; font-size: 11px; }
+  .spu-info .spu-id .lbl { color: #bfbfbf; margin-right: 2px; }
+
+  /* SKU信息 - 缩进 */
+  .sku-cell { display: flex; align-items: center; gap: 8px; text-align: left; padding-left: 28px; }
+  .sku-img { width: 20px; height: 20px; border-radius: 3px; flex-shrink: 0; border: 1px solid #eee; }
+  .sku-info { text-align: left; }
+  .sku-info .sku-code { color: #333; font-size: 12px; font-weight: 500; font-family: 'Menlo', 'Monaco', 'Consolas', monospace; }
+  .sku-info .sku-meta { color: #999; font-size: 11px; }
+
+  /* 颜色标记 - 基于与自身平均退货率对比 */
+  .c-normal { color: #52c41a; }
+  .c-warn { color: #d48806; font-weight: 500; }
+  .c-danger { color: #cf1322; font-weight: 600; }
+  .bg-normal { background: #f6ffed !important; }
+  .bg-warn { background: #fffbe6 !important; }
+  .bg-danger { background: #fff1f0 !important; }
+
+  /* 每日单元格 - 退货率 + 环比 */
+  .rate-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .rate-val { font-size: 12px; line-height: 16px; color: #333; height: 16px; }
+  .rate-mom { font-size: 10px; line-height: 12px; height: 12px; margin-top: 2px; font-weight: 500; font-family: 'Menlo','Monaco','Consolas',monospace; }
+  .rate-mom.up { color: #cf1322; }
+  .rate-mom.down { color: #52c41a; }
+  .rate-mom.flat { color: #bfbfbf; }
+
+  /* 标签 */
+  .badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+  .badge-danger { background: #fff1f0; color: #ff4d4f; border: 1px solid #ffa39e; }
+  .badge-warn { background: #fffbe6; color: #faad14; border: 1px solid #ffe58f; }
+  .badge-normal { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+
+  /* 分隔 */
+  .sep-right { border-right: 2px solid #e8e8e8; }
+
+  /* 趋势按钮 */
+  .trend-btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: #fff5f2; color: #ff6b35; border: 1px solid #ffd4c4; border-radius: 4px; font-size: 11px; cursor: pointer; }
+  .trend-btn:hover { background: #ff6b35; color: #fff; border-color: #ff6b35; }
+
+  /* 展开详情 */
+  .detail-row { display: none; }
+  .detail-row.show { display: table-row; }
+  .hidden { display: none !important; }
+  .detail-row td { padding: 0 !important; background: #fafafa; }
+  .detail-inner { padding: 12px 16px; background: #fafafa; }
+  .detail-chart { height: 200px; }
+  .detail-info { display: flex; gap: 16px; margin-bottom: 10px; align-items: center; font-size: 12px; color: #666; flex-wrap: wrap; }
+
+  /* 图例 */
+  .legend-bar { display: flex; align-items: center; gap: 16px; padding: 10px 20px; background: #fafafa; border-top: 1px solid #f0f0f0; font-size: 12px; color: #666; }
+  /* 排序表头 */
+  th.sortable { cursor: pointer; user-select: none; transition: background 0.15s; }
+  th.sortable:hover { background: #fff5f2 !important; color: #ff6b35; }
+  th.sortable .sort-ind { display: inline-block; margin-left: 4px; color: #bfbfbf; font-size: 10px; vertical-align: middle; }
+  th.sortable.asc .sort-ind, th.sortable.desc .sort-ind { color: #ff6b35; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-box { width: 12px; height: 12px; border-radius: 2px; border: 1px solid #e0e0e0; }
+  .legend-box.r { background: #fff1f0; border-color: #ffa39e; }
+  .legend-box.y { background: #fffbe6; border-color: #ffe58f; }
+  .legend-box.g { background: #f6ffed; border-color: #b7eb8f; }
+
+  .data-footer { padding: 12px 20px; background: #fafafa; border-top: 1px solid #f0f0f0; font-size: 12px; color: #999; }
+  .pagination { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #f0f0f0; }
+  .pagination-info { font-size: 13px; color: #666; }
+  .pagination-controls { display: flex; align-items: center; gap: 4px; }
+  .page-btn { min-width: 32px; height: 32px; padding: 0 8px; border: 1px solid #e8e8e8; background: #fff; border-radius: 4px; font-size: 13px; color: #666; cursor: pointer; }
+  .page-btn:hover { border-color: #ff6b35; color: #ff6b35; }
+  .page-btn.active { background: #ff6b35; border-color: #ff6b35; color: #fff; }
+  .page-size { padding: 6px 28px 6px 12px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 13px; color: #333; background: #fff; appearance: none; }
+
+  /* ===== 预警功能 ===== */
+  .btn-warn { padding: 6px 14px; background: #fff; color: #ff6b35; border: 1px solid #ffd591; border-radius: 4px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+  .btn-warn:hover { background: #fff5f2; border-color: #ff6b35; }
+  .btn-warn.has-alert { background: #fff1f0; border-color: #ff4d4f; color: #cf1322; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,77,79,0.4); } 50% { box-shadow: 0 0 0 4px rgba(255,77,79,0); } }
+
+  /* 模态遮罩 */
+  .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: none; align-items: center; justify-content: center; }
+  .modal-mask.show { display: flex; }
+  .modal-box { background: #fff; border-radius: 8px; width: 420px; max-width: 90vw; box-shadow: 0 8px 32px rgba(0,0,0,0.2); overflow: hidden; }
+  .modal-head { padding: 16px 20px; border-bottom: 1px solid #f0f0f0; font-size: 15px; font-weight: 600; color: #1a1a1a; display: flex; align-items: center; justify-content: space-between; }
+  .modal-body { padding: 20px; }
+  .modal-foot { padding: 12px 20px; border-top: 1px solid #f0f0f0; display: flex; justify-content: flex-end; gap: 8px; background: #fafafa; }
+  .modal-close { cursor: pointer; color: #999; font-size: 18px; line-height: 1; }
+  .modal-close:hover { color: #333; }
+  .form-row { margin-bottom: 16px; }
+  .form-row:last-child { margin-bottom: 0; }
+  .form-label { display: block; font-size: 13px; color: #333; margin-bottom: 6px; font-weight: 500; }
+  .form-label .hint { color: #999; font-weight: 400; font-size: 12px; margin-left: 4px; }
+  .form-input { width: 100%; padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 14px; color: #333; }
+  .form-input:focus { outline: none; border-color: #ff6b35; box-shadow: 0 0 0 2px rgba(255,107,53,0.1); }
+  .form-suffix { display: inline-block; margin-left: 6px; font-size: 13px; color: #999; }
+  .tpl-preview { margin-top: 8px; background: #f6f8fa; border: 1px solid #e8e8e8; border-radius: 6px; padding: 12px 14px; font-size: 12px; color: #333; line-height: 1.8; }
+  .tpl-preview .tpl-title { font-weight: 600; color: #1a1a1a; margin-bottom: 4px; }
+  .tpl-preview .tpl-row { color: #666; }
+  .tpl-preview .tpl-row .c-code { color: #ff6b35; font-family: 'Menlo','Monaco','Consolas',monospace; }
+  .tpl-preview .tpl-row .c-rate { color: #cf1322; font-weight: 600; }
+  .tpl-preview .tpl-row .c-delta { color: #cf1322; }
+
+  /* 飞书通知卡片 */
+  .notify-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1001; display: none; align-items: center; justify-content: center; }
+  .notify-mask.show { display: flex; }
+  .notify-card { width: 380px; max-width: 90vw; max-height: 80vh; overflow-y: auto; background: #fff; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+  .notify-head { background: linear-gradient(135deg, #ff6b35, #ff4d4f); color: #fff; padding: 14px 20px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; border-radius: 8px 8px 0 0; }
+  .notify-body { padding: 16px 20px; }
+  .notify-date-group { margin-bottom: 16px; }
+  .notify-date-group:last-child { margin-bottom: 0; }
+  .notify-date-title { font-size: 14px; font-weight: 600; color: #1a1a1a; padding-bottom: 8px; border-bottom: 1px solid #f5f5f5; margin-bottom: 8px; }
+  .notify-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; color: #333; }
+  .notify-item .code { font-family: 'Menlo','Monaco','Consolas',monospace; color: #ff6b35; font-weight: 500; min-width: 110px; }
+  .notify-item .rate { color: #cf1322; font-weight: 600; }
+  .notify-item .delta { color: #cf1322; font-size: 12px; }
+  .notify-empty { text-align: center; padding: 40px 0; color: #999; font-size: 13px; }
+  .notify-foot { padding: 10px 20px; border-top: 1px solid #f0f0f0; text-align: right; background: #fafafa; border-radius: 0 0 8px 8px; }
+
+  ::-webkit-scrollbar { width: 6px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #d9d9d9; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #bfbfbf; }
+</style>
+</head>
+<body>
+
+<div class="top-nav">
+  <div class="logo"><div class="logo-icon">井</div><span>井唐数字 · 一曲线</span></div>
+  <div class="nav-menu">
+    <div class="nav-item">数据概览</div><div class="nav-item">库存管理</div>
+    <div class="nav-item active">商品分析</div><div class="nav-item">店铺分析</div>
+    <div class="nav-item">流量分析</div><div class="nav-item">财务分析</div>
+    <div class="nav-item">数据运营</div><div class="nav-item">服务看板</div>
+    <div class="nav-item">直播管理</div><div class="nav-item">生产分析</div>
+  </div>
+  <div class="top-actions">
+    <div class="action-btn">🔔</div><div class="action-btn">📢 公告</div>
+    <div class="action-btn">📊 数据更新 10:30</div><div class="action-btn">📐 指标公式</div>
+    <div class="user-avatar">姚</div>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="side-menu">
+    <div class="side-group-title">新品数据</div>
+    <div class="side-item"><span class="dot"></span>销售数据</div>
+    <div class="side-group-title" style="margin-top:12px;">商品分析</div>
+    <div class="side-item"><span class="dot"></span>商品概览</div>
+    <div class="side-item"><span class="dot"></span>商品明细</div>
+    <div class="side-item active"><span class="dot"></span>10天退货率</div>
+    <div class="side-item"><span class="dot"></span>商品查询</div>
+    <div class="side-group-title" style="margin-top:12px;">实时数据</div>
+    <div class="side-item"><span class="dot"></span>实时大屏</div>
+    <div class="side-item"><span class="dot"></span>商品评论</div>
+    <div class="side-item"><span class="dot"></span>销售大屏</div>
+    <div class="side-item"><span class="dot"></span>竞品数据</div>
+  </div>
+
+  <div class="main-content">
+    <div class="filter-bar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="filter-title">退货率看板</div>
+        <span style="font-size:13px;color:#999;">更新时间：2026/08/20 13:22:01</span>
+      </div>
+      <div class="filter-actions">
+        <span class="filter-label">上新日期：</span>
+        <div class="ms-wrap" id="launchDateMs">
+          <div class="ms-trigger" id="launchDateTrigger"><span class="placeholder">请选择上新日期</span></div>
+          <div class="ms-panel" id="launchDatePanel">
+            <div class="ms-option"><label><input type="checkbox" value="2026-08-01"><span>2026-08-01</span></label></div>
+            <div class="ms-option"><label><input type="checkbox" value="2026-08-03"><span>2026-08-03</span></label></div>
+            <div class="ms-option"><label><input type="checkbox" value="2026-08-05"><span>2026-08-05</span></label></div>
+            <div class="ms-option"><label><input type="checkbox" value="2026-08-08"><span>2026-08-08</span></label></div>
+            <div class="ms-option"><label><input type="checkbox" value="2026-08-10"><span>2026-08-10</span></label></div>
+            <div class="ms-option"><label><input type="checkbox" value="2026-08-12"><span>2026-08-12</span></label></div>
+            <div class="ms-option"><label><input type="checkbox" value="2026-08-15"><span>2026-08-15</span></label></div>
+            <div class="ms-option"><label><input type="checkbox" value="2026-08-18"><span>2026-08-18</span></label></div>
+            <div class="ms-option"><label><input type="checkbox" value="2026-08-20"><span>2026-08-20</span></label></div>
+            <div class="ms-option"><label><input type="checkbox" value="2026-08-22"><span>2026-08-22</span></label></div>
+            <div class="ms-option"><label><input type="checkbox" value="2026-08-25"><span>2026-08-25</span></label></div>
+            <div class="ms-footer">
+              <a id="launchDateClear">清空</a>
+              <a id="launchDateAll">全选</a>
+            </div>
+          </div>
+        </div>
+        <span class="filter-label">品牌：</span>
+        <select class="filter-select">
+          <option>全部品牌</option>
+          <option>鹭青一</option><option>鹭青二</option><option>鹭青三</option>
+        </select>
+        <span class="filter-label">类目：</span>
+        <select class="filter-select"><option>全部类目</option></select>
+        <span class="filter-label">款式定义：</span>
+        <div class="ms-wrap" id="styleDefMs">
+          <div class="ms-trigger" id="styleDefTrigger"><span class="placeholder">请选择款式定义</span></div>
+          <div class="ms-panel" id="styleDefPanel">
+            <div class="ms-option"><label><input type="checkbox" value="日销款"><span>日销款</span></label></div>
+            <div class="ms-option"><label><input type="checkbox" value="重点款"><span>重点款</span></label></div>
+            <div class="ms-footer">
+              <a id="styleDefClear">清空</a>
+              <a id="styleDefAll">全选</a>
+            </div>
+          </div>
+        </div>
+        <span class="filter-label">店铺：</span>
+        <div class="ms-wrap" id="shopMs">
+          <div class="ms-trigger" id="shopTrigger"><span class="placeholder">请选择店铺</span></div>
+          <div class="ms-panel" id="shopPanel">
+            <div class="ms-option"><label><input type="checkbox" value="鹭青旗舰店"><span>鹭青旗舰店</span></label></div>
+            <div class="ms-option"><label><input type="checkbox" value="鹭青专卖店"><span>鹭青专卖店</span></label></div>
+            <div class="ms-option"><label><input type="checkbox" value="鹭青直播店"><span>鹭青直播店</span></label></div>
+            <div class="ms-option"><label><input type="checkbox" value="鹭青奥莱店"><span>鹭青奥莱店</span></label></div>
+            <div class="ms-footer">
+              <a id="shopClear">清空</a>
+              <a id="shopAll">全选</a>
+            </div>
+          </div>
+        </div>
+        <button class="btn-primary">查询</button>
+        <button class="btn-ghost" id="resetBtn">↻ 重置</button>
+      </div>
+    </div>
+
+    <!-- 宽表 -->
+    <div class="table-section">
+      <div class="table-header-bar">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div class="table-title" style="margin:0;">商品实发退货率明细</div>
+          <span class="filter-label">退货周期：</span>
+          <select class="filter-select" id="periodSelect" onchange="changePeriod(this.value)">
+            <option value="10" selected>T+10</option>
+            <option value="15">T+15</option>
+            <option value="20">T+20</option>
+            <option value="30">T+30</option>
+          </select>
+          <span class="filter-label" id="dataDesc" style="color:#999;font-weight:400;">数据说明：T+10实发退货率 = (实发数量 − T+10天内总退货数) / 实发数量 × 100%。</span>
+        </div>
+        <div class="table-actions">
+          <button class="btn-warn" id="warnBtn" onclick="openWarnConfig()">🔔 预警设置</button>
+          <input type="text" class="filter-search" id="skuSearch" placeholder="搜索款号" style="width:200px;">
+          <button class="btn-ghost">⬇ 导出</button>
+        </div>
+      </div>
+
+      <div class="table-scroll" id="tableScroll">
+        <table class="wide" id="mainTable">
+          <!-- 由JS注入 -->
+        </table>
+      </div>
+
+      <div class="legend-bar">
+        <span>背景：</span>
+        <div class="legend-item"><div class="legend-box g"></div>低于自身平均</div>
+        <div class="legend-item"><div class="legend-box y"></div>等于自身平均</div>
+        <div class="legend-item"><div class="legend-box r"></div>高于自身平均</div>
+        <span style="margin:0 12px;color:#e0e0e0;">|</span>
+        <span>环比：</span>
+        <span class="rate-mom up" style="font-size:11px;">↑ 红涨</span>
+        <span class="rate-mom down" style="font-size:11px;">↓ 绿跌</span>
+        <span style="margin-left:auto;">💡 退货率值下方显示与上一日的环比变化</span>
+      </div>
+
+      <div class="pagination">
+        <div class="pagination-info">共 128 条数据</div>
+        <div class="pagination-controls">
+          <select class="page-size"><option>10条/页</option><option>20条/页</option></select>
+          <button class="page-btn" disabled>‹</button>
+          <button class="page-btn active">1</button>
+          <button class="page-btn">2</button>
+          <button class="page-btn">3</button>
+          <button class="page-btn">›</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 预警配置模态框 -->
+<div class="modal-mask" id="warnModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span>🔔 退货率异常上涨预警配置</span>
+      <span class="modal-close" onclick="closeWarnConfig()">×</span>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">预警上涨比例<span class="hint">环比涨幅 ≥ 此值时触发</span></label>
+        <div style="display:flex;align-items:center;">
+          <input type="number" class="form-input" id="warnDelta" value="2" min="0" step="0.1" style="width:120px;">
+          <span class="form-suffix">%</span>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">免除预警的下单件数<span class="hint">T日下单量 ≤ 此值时不触发</span></label>
+        <div style="display:flex;align-items:center;">
+          <input type="number" class="form-input" id="warnMinOrder" value="10" min="0" step="1" style="width:120px;">
+          <span class="form-suffix">件</span>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">消息模板示例</label>
+        <div class="tpl-preview" id="tplPreview">
+          <div class="tpl-title">08/17 退货率异常上涨商品</div>
+          <div class="tpl-row">款号：<span class="c-code">L26H80105</span>，退货率：<span class="c-rate">43.5%</span>（上涨<span class="c-delta">2.2%</span>）</div>
+          <div class="tpl-row">款号：<span class="c-code">L26H80106-白-M</span>，退货率：<span class="c-rate">46.5%</span>（上涨<span class="c-delta">2.1%</span>）</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" onclick="closeWarnConfig()">取消</button>
+      <button class="btn-primary" onclick="saveWarnConfig()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 飞书通知预览卡片 -->
+<div class="notify-mask" id="notifyMask" onclick="if(event.target===this) closeNotify()">
+  <div class="notify-card">
+    <div class="notify-head">
+      <span>📨 飞书预警通知预览</span>
+    </div>
+    <div class="notify-body" id="notifyBody">
+      <!-- 由JS注入 -->
+    </div>
+    <div class="notify-foot">
+      <button class="btn-ghost" onclick="closeNotify()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ 多选下拉通用初始化 ============
+function initMultiSelect(triggerId, panelId, clearId, allId, placeholder) {
+  const trigger = document.getElementById(triggerId);
+  const panel = document.getElementById(panelId);
+  const boxes = panel.querySelectorAll('input[type=checkbox]');
+
+  function render() {
+    const checked = Array.from(boxes).filter(b => b.checked).map(b => b.value);
+    if (checked.length === 0) {
+      trigger.innerHTML = '<span class="placeholder">' + placeholder + '</span>';
+    } else if (checked.length === 1) {
+      trigger.textContent = checked[0];
+    } else {
+      trigger.innerHTML = '已选 <span class="count">' + checked.length + '</span> 项';
+    }
+  }
+  function close() {
+    panel.classList.remove('show');
+    trigger.classList.remove('active');
+  }
+  trigger.addEventListener('click', e => {
+    e.stopPropagation();
+    const isOpen = panel.classList.contains('show');
+    // 关闭所有其他面板
+    document.querySelectorAll('.ms-panel.show').forEach(p => p.classList.remove('show'));
+    document.querySelectorAll('.ms-trigger.active').forEach(t => t.classList.remove('active'));
+    if (!isOpen) {
+      panel.classList.add('show');
+      trigger.classList.add('active');
+    }
+  });
+  panel.addEventListener('click', e => { e.stopPropagation(); });
+  panel.addEventListener('change', render);
+  document.getElementById(clearId).addEventListener('click', () => {
+    boxes.forEach(b => b.checked = false);
+    render();
+  });
+  document.getElementById(allId).addEventListener('click', () => {
+    boxes.forEach(b => b.checked = true);
+    render();
+  });
+  document.addEventListener('click', close);
+  render();
+}
+
+// 初始化三个多选下拉
+initMultiSelect('launchDateTrigger', 'launchDatePanel', 'launchDateClear', 'launchDateAll', '请选择上新日期');
+initMultiSelect('styleDefTrigger', 'styleDefPanel', 'styleDefClear', 'styleDefAll', '请选择款式定义');
+initMultiSelect('shopTrigger', 'shopPanel', 'shopClear', 'shopAll', '请选择店铺');
+
+// ============ 重置按钮 ============
+document.getElementById('resetBtn').addEventListener('click', () => {
+  // 清空所有多选
+  document.querySelectorAll('.ms-panel input[type=checkbox]').forEach(b => b.checked = false);
+  document.querySelectorAll('.ms-trigger').forEach(t => {
+    const ph = t.parentElement.querySelector('.placeholder')?.textContent || '';
+    t.innerHTML = '<span class="placeholder">' + ph + '</span>';
+  });
+  // 品牌与类目重置为第一项
+  document.querySelectorAll('.filter-bar .filter-select').forEach(sel => { sel.selectedIndex = 0; });
+});
+
+// ============ 商品图片（使用 text_to_image API生成真实风格图） ============
+const productImages = [
+  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=fashion%20product%20photo%20of%20woman%20wearing%20beige%20tank%20top%20dress%2C%20studio%20lighting%2C%20minimalist%20fashion%20photography&image_size=portrait_4_3',
+  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=fashion%20product%20photo%20of%20woman%20wearing%20white%20blouse%20shirt%2C%20studio%20lighting%2C%20minimalist%20fashion%20photography&image_size=portrait_4_3',
+  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=fashion%20product%20photo%20of%20woman%20wearing%20beige%20trench%20coat%2C%20studio%20lighting%2C%20minimalist%20fashion%20photography&image_size=portrait_4_3',
+  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=fashion%20product%20photo%20of%20woman%20wearing%20blue%20jeans%2C%20studio%20lighting%2C%20minimalist%20fashion%20photography&image_size=portrait_4_3',
+  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=fashion%20product%20photo%20of%20woman%20wearing%20elegant%20suit%20set%2C%20studio%20lighting%2C%20minimalist%20fashion%20photography&image_size=portrait_4_3',
+  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=fashion%20product%20photo%20of%20woman%20wearing%20knit%20sweater%2C%20studio%20lighting%2C%20minimalist%20fashion%20photography&image_size=portrait_4_3',
+  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=fashion%20product%20photo%20of%20woman%20wearing%20floral%20print%20dress%2C%20studio%20lighting%2C%20minimalist%20fashion%20photography&image_size=portrait_4_3',
+  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=fashion%20product%20photo%20of%20woman%20wearing%20tailored%20blazer%2C%20studio%20lighting%2C%20minimalist%20fashion%20photography&image_size=portrait_4_3',
+  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=fashion%20product%20photo%20of%20woman%20wearing%20camisole%20tank%2C%20studio%20lighting%2C%20minimalist%20fashion%20photography&image_size=portrait_4_3',
+  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=fashion%20product%20photo%20of%20woman%20wearing%20french%20style%20dress%2C%20studio%20lighting%2C%20minimalist%20fashion%20photography&image_size=portrait_4_3'
+];
+
+// 图片加载失败的fallback
+function productImgHTML(idx) {
+  const svgFallback = `<svg viewBox="0 0 60 74" xmlns="http://www.w3.org/2000/svg">
+    <rect width="60" height="74" rx="4" fill="#f5f5f5"/>
+    <circle cx="30" cy="26" r="8" fill="#ddd"/>
+    <path d="M16 74 Q30 48 44 74 Z" fill="#ddd"/>
+  </svg>`;
+  return `<img src="${productImages[idx]}" onerror="this.outerHTML='${svgFallback.replace(/\n/g,'')}'" alt="商品图片">`;
+}
+
+// ============ 数据 ============
+const brands = ['鹭青一', '鹭青二', '鹭青三'];
+const categoryList = ['背心吊带', '衬衫', '风衣', '牛仔裤', '时尚套装', '毛针织衫'];
+const colorList = ['黑色', '白色', '米色', '蓝色', '绿色', '粉色', '花色', '灰色'];
+const sizeList = ['S', 'M', 'L', 'XL'];
+
+function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function randomFloat(min, max) { return parseFloat((Math.random() * (max - min) + min).toFixed(1)); }
+
+// 表头用相对天数（所有商品共享）
+const dayLabels = [];
+for (let i = 0; i < 90; i++) {
+  dayLabels.push(`第${i + 1}天`);
+}
+
+// 根据上新日期计算T+N起始日
+function getTStartDate(newDateStr, period) {
+  const d = new Date(newDateStr);
+  d.setDate(d.getDate() + period);
+  return d.toISOString().split('T')[0];
+}
+function getT10StartDate(newDateStr) { return getTStartDate(newDateStr, 10); }
+function getTDateLabels(tStartStr) {
+  const labels = [];
+  const start = new Date(tStartStr);
+  for (let i = 0; i < 90; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    labels.push(`${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`);
+  }
+  return labels;
+}
+// 生成T日（下单日）标签：上新日开始90天
+function getTDateLabels(newDateStr) {
+  const labels = [];
+  const start = new Date(newDateStr);
+  for (let i = 0; i < 90; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    labels.push(`${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`);
+  }
+  return labels;
+}
+
+const productNames = [
+  '简约气质连衣裙', '经典翻领衬衫', '时尚廓形风衣', '高腰直筒牛仔裤', '优雅小香风套装',
+  '休闲V领毛针织衫', '复古印花连衣裙', '气质西装外套', '简约吊带背心', '法式风情连衣裙'
+];
+const productBaseCodes = ['L26A10025','L26B20038','L26C30052','L26D40068','L26E50079','L26F60088','L26G70091','L26H80105','L26I90120','L26J10135'];
+
+function colorHex(colorName) {
+  return {'黑色':'#333','白色':'#f0f0f0','米色':'#e8d5b7','蓝色':'#1890ff','绿色':'#52c41a','粉色':'#ffb6c1','花色':'#c489d9','灰色':'#999'}[colorName] || '#ccc';
+}
+
+function generateSKUs(productId, baseCode, count) {
+  const skus = [];
+  for (let i = 0; i < count; i++) {
+    const color = colorList[i % colorList.length];
+    const size = sizeList[randomInt(0, 3)];
+    const skuCode = `${baseCode}-${color}-${size}`;
+    const baseRate = randomFloat(18, 48);
+    const dailyRates = [];
+    const orderQty = [];
+    const returnQty = [];
+    for (let j = 0; j < 90; j++) {
+      let rate = baseRate + randomFloat(-10, 12);
+      if (Math.random() < 0.18) rate += randomFloat(5, 15);
+      rate = Math.max(3, Math.min(80, rate));
+      dailyRates.push(rate);
+      const oq = randomInt(50, 300);
+      orderQty.push(oq);
+      returnQty.push(Math.round(oq * rate / 100));
+    }
+    skus.push({
+      id: `${productId}-${i}`,
+      skuCode: skuCode,
+      color: color,
+      size: size,
+      dailyRates: dailyRates,
+      orderQty: orderQty,
+      returnQty: returnQty,
+      avgRate: parseFloat((dailyRates.reduce((a,b)=>a+b,0)/90).toFixed(1)),
+      estRate: parseFloat((dailyRates.reduce((a,b)=>a+b,0)/90 * 1.08).toFixed(1)),
+      baseRates: [...dailyRates],
+      abnormalDays: dailyRates.filter(r => r > 40).length
+    });
+  }
+  return skus;
+}
+
+// 生成产品
+const products = [];
+for (let i = 0; i < productNames.length; i++) {
+  const newDate = new Date('2026-08-01');
+  newDate.setDate(newDate.getDate() + randomInt(0, 25));
+  const skuCount = randomInt(3, 6);
+  const skus = generateSKUs(i + 1, productBaseCodes[i], skuCount);
+
+  // 商品级每日退货率
+  const productDailyRates = [];
+  const productOrderQty = [];
+  const productReturnQty = [];
+  for (let d = 0; d < 90; d++) {
+    const dayRates = skus.map(s => s.dailyRates[d]);
+    productDailyRates.push(parseFloat((dayRates.reduce((a,b)=>a+b,0)/dayRates.length).toFixed(1)));
+    // 商品级下单/退货数量：取各SKU汇总
+    const oqSum = skus.reduce((sum, s) => sum + s.orderQty[d], 0);
+    productOrderQty.push(oqSum);
+    productReturnQty.push(Math.round(oqSum * productDailyRates[d] / 100));
+  }
+  const allRates = [];
+  skus.forEach(s => allRates.push(...s.dailyRates));
+
+  const newDateFull = newDate.toISOString().split('T')[0];
+  const t10Start = getT10StartDate(newDateFull);
+  const t10Dates = getTDateLabels(t10Start);
+  const tDates = getTDateLabels(newDateFull);
+
+  products.push({
+    id: i + 1,
+    name: productNames[i],
+    productCode: productBaseCodes[i],
+    brand: brands[i % brands.length],
+    imgIdx: i,
+    category: categoryList[randomInt(0, categoryList.length - 1)],
+    styleDef: ['日销款', '重点款', '日销款', '重点款', '日销款'][i % 5],
+    newDateFull: newDateFull,
+    t10Start: t10Start,
+    t10Dates: t10Dates,
+    tDates: tDates,
+    skus: skus,
+    skuCount: skuCount,
+    avgRate: parseFloat((allRates.reduce((a,b)=>a+b,0)/allRates.length).toFixed(1)),
+    estRate: parseFloat((allRates.reduce((a,b)=>a+b,0)/allRates.length * 1.08).toFixed(1)),
+    productDailyRates: productDailyRates,
+    productOrderQty: productOrderQty,
+    // 保存base rates用于周期切换
+    baseProductRates: [...productDailyRates],
+    baseSkuRates: skus.map(s => [...s.dailyRates]),
+    productReturnQty: productReturnQty,
+    abnormalDays: skus.reduce((a,s)=>a+s.abnormalDays, 0)
+  });
+}
+products.sort((a, b) => b.avgRate - a.avgRate);
+
+// ============ 周期切换 ============
+let currentPeriod = 10;
+const periodMultipliers = { 10: 1.0, 15: 1.12, 20: 1.22, 30: 1.35 };
+
+function changePeriod(val) {
+  currentPeriod = parseInt(val);
+  const mult = periodMultipliers[currentPeriod] || 1.0;
+
+  products.forEach(p => {
+    // 重算起算日
+    p.t10Start = getTStartDate(p.newDateFull, currentPeriod);
+    p.t10Dates = getTDateLabels(p.t10Start);
+
+    // 重算商品级每日退货率
+    p.productDailyRates = p.baseProductRates.map(r => {
+      let nr = r * mult;
+      return parseFloat(Math.max(1, Math.min(95, nr)).toFixed(1));
+    });
+    // 重算退货量
+    p.productReturnQty = p.productDailyRates.map((r, i) => Math.round(p.productOrderQty[i] * r / 100));
+    // 重算均值
+    p.avgRate = parseFloat((p.productDailyRates.reduce((a,b)=>a+b,0)/90).toFixed(1));
+    p.estRate = parseFloat((p.productDailyRates.reduce((a,b)=>a+b,0)/90 * 1.08).toFixed(1));
+
+    // 重算SKU级
+    p.skus.forEach((sku, si) => {
+      sku.dailyRates = sku.baseRates.map(r => {
+        let nr = r * mult;
+        return parseFloat(Math.max(1, Math.min(95, nr)).toFixed(1));
+      });
+      sku.returnQty = sku.dailyRates.map((r, i) => Math.round(sku.orderQty[i] * r / 100));
+      sku.avgRate = parseFloat((sku.dailyRates.reduce((a,b)=>a+b,0)/90).toFixed(1));
+      sku.estRate = parseFloat((sku.dailyRates.reduce((a,b)=>a+b,0)/90 * 1.08).toFixed(1));
+    });
+  });
+
+  // 更新表头标题
+  const mergedTh = document.querySelector('.merged');
+  if (mergedTh) mergedTh.textContent = `T+${currentPeriod}实发退货率`;
+
+  // 更新数据说明
+  const desc = document.getElementById('dataDesc');
+  if (desc) desc.textContent = `数据说明：T+${currentPeriod}实发退货率 = (实发数量 − T+${currentPeriod}天内总退货数) / 实发数量 × 100%。`;
+
+  // 重置排序状态
+  sortState = { field: null, order: null };
+  // 重新排序
+  products.sort((a, b) => b.avgRate - a.avgRate);
+
+  // 重建表格
+  buildTable();
+  checkWarning();
+}
+
+// ============ 构建表格 ============
+// 列宽配置
+const W = { btn: 44, spu: 270, brand: 75, category: 85, styleDef: 75, date: 90, t10Start: 100, skuCount: 55, avg: 95, estRate: 95, trend: 80, day: 50 };
+const TOTAL_DAILY_COL = 90;
+const LEFT_FIXED = W.btn + W.spu; // 314px 固定列总宽
+
+function rc(r, avg) { return r > avg ? 'c-danger' : r < avg ? 'c-normal' : 'c-warn'; }
+function rb(r, avg) { return r > avg ? 'bg-danger' : r < avg ? 'bg-normal' : 'bg-warn'; }
+// 环比 HTML：与上一日对比
+function momHTML(r, prev) {
+  if (prev === null || prev === undefined) return '<div class="rate-mom flat">—</div>';
+  const diff = parseFloat((r - prev).toFixed(1));
+  if (diff > 0) return `<div class="rate-mom up">↑${diff.toFixed(1)}%</div>`;
+  if (diff < 0) return `<div class="rate-mom down">↓${Math.abs(diff).toFixed(1)}%</div>`;
+  return '<div class="rate-mom flat">→0.0%</div>';
+}
+function badgeHTML(avg, abDays) {
+  if (avg > 45 || abDays >= 20) return '<span class="badge badge-danger">高风险</span>';
+  if (avg > 40) return '<span class="badge badge-danger">异常</span>';
+  if (avg > 35) return '<span class="badge badge-warn">关注</span>';
+  return '<span class="badge badge-normal">正常</span>';
+}
+
+function buildTable() {
+  // 销毁旧图表实例
+  Object.values(chartInst).forEach(c => { try { c.dispose(); } catch(e){} });
+  Object.keys(chartInst).forEach(k => delete chartInst[k]);
+
+  const table = document.getElementById('mainTable');
+  // 总列数：2固定(按钮+商品信息) + 9普通(品牌+类目+款式定义+上新日+起算日+SKU数+平均实发退货率+预计实发退货率+趋势) + 90天 = 101
+  const totalCols = 2 + 9 + 90;
+
+  let h = '';
+
+  // ===== 表头 =====
+  h += '<thead>';
+  h += '<tr>';
+  h += `<th rowspan="2" class="fth-1" style="width:${W.btn}px;"></th>`;
+  h += `<th rowspan="2" class="fth-2 fth-shadow-2" style="width:${W.spu}px;text-align:left;padding-left:12px;">商品信息</th>`;
+  h += `<th rowspan="2" style="width:${W.brand}px;">品牌</th>`;
+  h += `<th rowspan="2" style="width:${W.category}px;">类目</th>`;
+  h += `<th rowspan="2" style="width:${W.styleDef}px;">款式定义</th>`;
+  h += `<th rowspan="2" style="width:${W.skuCount}px;">SKU数</th>`;
+  h += `<th rowspan="2" class="sortable" style="width:${W.date}px;" onclick="sortBy('newDate')" id="th-date">上新日期<span class="sort-ind">↕</span></th>`;
+  h += `<th rowspan="2" style="width:${W.t10Start}px;">退货率<br>起算日</th>`;
+  h += `<th rowspan="2" class="sortable" style="width:${W.avg}px;" onclick="sortBy('avgRate')" id="th-avg">平均实发<br>退货率<span class="sort-ind">↕</span></th>`;
+  h += `<th rowspan="2" style="width:${W.estRate}px;">预计实发<br>退货率</th>`;
+  h += `<th rowspan="2" style="width:${W.trend}px;">退货率趋势</th>`;
+  h += `<th colspan="90" class="merged" style="width:${W.day * 90}px;">T+10实发退货率</th>`;
+  h += '</tr><tr>';
+  for (let i = 0; i < 90; i++) {
+    const hl = i >= 87 ? 'highlight-day' : '';
+    h += `<th class="${hl}" style="width:${W.day}px;">${dayLabels[i]}</th>`;
+  }
+  h += '</tr></thead>';
+
+  h += '<tbody>';
+
+  // ===== 商品行 =====
+  products.forEach(product => {
+    h += `<tr class="product-row" id="p-${product.id}">`;
+    h += `<td class="fc-1" style="width:${W.btn}px;"><button class="expand-btn" onclick="toggleProduct(${product.id})" id="bp-${product.id}">▶</button></td>`;
+    h += `<td class="fc-2 fc-shadow-2" style="width:${W.spu}px;">
+      <div class="spu-cell">
+        <div class="spu-img">${productImgHTML(product.imgIdx)}</div>
+        <div class="spu-info">
+          <div class="spu-name">${product.name}</div>
+          <div class="spu-code">${product.productCode}</div>
+          <div class="spu-id"><span class="lbl">ID:</span>${product.id}</div>
+        </div>
+      </div></td>`;
+    h += `<td style="width:${W.brand}px;">${product.brand}</td>`;
+    h += `<td style="width:${W.category}px;">${product.category}</td>`;
+    h += `<td style="width:${W.styleDef}px;">${product.styleDef}</td>`;
+    h += `<td style="width:${W.skuCount}px;">${product.skuCount}</td>`;
+    h += `<td style="width:${W.date}px; color:#ff6b35;">${product.newDateFull}</td>`;
+    h += `<td style="width:${W.t10Start}px;">${product.t10Start}</td>`;
+    h += `<td class="${rc(product.avgRate, product.avgRate)}" style="width:${W.avg}px;">${product.avgRate}%</td>`;
+    h += `<td style="width:${W.estRate}px;">${product.estRate}%</td>`;
+    h += `<td style="width:${W.trend}px;"><button class="trend-btn" onclick="toggleTrend('p-${product.id}')">📈 查看</button></td>`;
+    product.productDailyRates.forEach((r, i) => {
+      const prev = i > 0 ? product.productDailyRates[i-1] : null;
+      h += `<td class="${rb(r, product.avgRate)}" style="width:${W.day}px;">
+        <div class="rate-cell">
+          <div class="rate-val">${r.toFixed(1)}%</div>
+          ${momHTML(r, prev)}
+        </div>
+      </td>`;
+    });
+    h += '</tr>';
+
+    // 商品趋势详情行
+    h += `<tr class="detail-row" id="trend-p-${product.id}">
+      <td colspan="${totalCols}" style="padding:0;">
+        <div class="detail-inner">
+          <div class="detail-info">
+            <span><strong>${product.brand} · ${product.name}</strong></span>
+            <span>90天均值：<strong class="${rc(product.avgRate)}">${product.avgRate}%</strong></span>
+            <span>最高：<strong style="color:#cf1322">${Math.max(...product.productDailyRates).toFixed(1)}%</strong></span>
+            <span>最低：<strong style="color:#52c41a">${Math.min(...product.productDailyRates).toFixed(1)}%</strong></span>
+          </div>
+          <div class="detail-chart" id="chart-p-${product.id}"></div>
+        </div>
+      </td>
+    </tr>`;
+
+    // ===== SKU行（默认隐藏）=====
+    product.skus.forEach(sku => {
+      h += `<tr class="sku-row hidden" id="s-${sku.id}">`;
+      h += `<td class="fc-1" style="width:${W.btn}px;"><button class="expand-btn" onclick="toggleTrend('s-${sku.id}')" id="bs-${sku.id}" style="background:#e8e8e8;">📈</button></td>`;
+      h += `<td class="fc-2 fc-shadow-2" style="width:${W.spu}px;">
+        <div class="sku-cell">
+          <div class="sku-img" style="background:${colorHex(sku.color)};"></div>
+          <div class="sku-info">
+            <div class="sku-code">${sku.skuCode}</div>
+          </div>
+        </div></td>`;
+      h += `<td style="width:${W.brand}px;">${product.brand}</td>`;
+      h += `<td style="width:${W.category}px;">${product.category}</td>`;
+      h += `<td style="width:${W.styleDef}px;">${product.styleDef}</td>`;
+      h += `<td style="width:${W.skuCount}px;">--</td>`;
+      h += `<td style="width:${W.date}px; color:#ff6b35;">${product.newDateFull}</td>`;
+      h += `<td style="width:${W.t10Start}px;">${product.t10Start}</td>`;
+      h += `<td class="${rc(sku.avgRate, sku.avgRate)}" style="width:${W.avg}px;">${sku.avgRate}%</td>`;
+      h += `<td style="width:${W.estRate}px;">${sku.estRate}%</td>`;
+      h += `<td style="width:${W.trend}px;"><button class="trend-btn" onclick="toggleTrend('s-${sku.id}')">📈 查看</button></td>`;
+      sku.dailyRates.forEach((r, i) => {
+        const prev = i > 0 ? sku.dailyRates[i-1] : null;
+        h += `<td class="${rb(r, sku.avgRate)}" style="width:${W.day}px;">
+          <div class="rate-cell">
+            <div class="rate-val">${r.toFixed(1)}%</div>
+            ${momHTML(r, prev)}
+          </div>
+        </td>`;
+      });
+      h += '</tr>';
+
+      // SKU趋势详情
+      h += `<tr class="detail-row hidden" id="trend-s-${sku.id}">
+        <td colspan="${totalCols}" style="padding:0;">
+          <div class="detail-inner">
+            <div class="detail-info">
+              <span><strong>${sku.skuCode}</strong></span>
+              <span>均值：<strong class="${rc(sku.avgRate)}">${sku.avgRate}%</strong></span>
+              <span>最高：<strong style="color:#cf1322">${Math.max(...sku.dailyRates).toFixed(1)}%</strong></span>
+              <span>最低：<strong style="color:#52c41a">${Math.min(...sku.dailyRates).toFixed(1)}%</strong></span>
+            </div>
+            <div class="detail-chart" id="chart-s-${sku.id}"></div>
+          </div>
+        </td>
+      </tr>`;
+    });
+  });
+
+  h += '</tbody>';
+  table.innerHTML = h;
+}
+
+// ============ 交互逻辑 ============
+const chartInst = {};
+
+// ============ 排序 ============
+let sortState = { field: null, order: null }; // order: 'asc' | 'desc' | null
+function sortBy(field) {
+  // 状态切换：null → desc → asc → null
+  if (sortState.field !== field) {
+    sortState = { field, order: 'desc' };
+  } else if (sortState.order === 'desc') {
+    sortState.order = 'asc';
+  } else if (sortState.order === 'asc') {
+    sortState = { field: null, order: null };
+  } else {
+    sortState.order = 'desc';
+  }
+
+  // 排序
+  if (sortState.order) {
+    products.sort((a, b) => {
+      let r;
+      if (field === 'newDate') r = a.newDateFull.localeCompare(b.newDateFull);
+      else if (field === 'avgRate') r = a.avgRate - b.avgRate;
+      return sortState.order === 'asc' ? r : -r;
+    });
+  } else {
+    // 恢复默认：按平均退货率降序
+    products.sort((a, b) => b.avgRate - a.avgRate);
+  }
+
+  buildTable();
+
+  // buildTable 会重建 DOM，需在重建后更新表头指示符
+  ['date', 'avg'].forEach(k => {
+    const th = document.getElementById('th-' + k);
+    if (!th) return;
+    th.classList.remove('asc', 'desc');
+    const ind = th.querySelector('.sort-ind');
+    const curField = k === 'date' ? 'newDate' : 'avgRate';
+    if (sortState.field === curField && sortState.order) {
+      th.classList.add(sortState.order);
+      ind.textContent = sortState.order === 'asc' ? '↑' : '↓';
+    } else {
+      ind.textContent = '↕';
+    }
+  });
+}
+
+function toggleProduct(pid) {
+  const product = products.find(p => p.id === pid);
+  const btn = document.getElementById('bp-' + pid);
+  if (!btn) return;
+  const isExpanded = btn.textContent === '▼';
+
+  // 收起SKU行 + SKU详情
+  if (isExpanded) {
+    product.skus.forEach(sku => {
+      const row = document.getElementById('s-' + sku.id);
+      const det = document.getElementById('trend-s-' + sku.id);
+      if (row) row.classList.add('hidden');
+      if (det) det.classList.add('hidden');
+    });
+  } else {
+    // 展开SKU行
+    product.skus.forEach(sku => {
+      const row = document.getElementById('s-' + sku.id);
+      if (row) row.classList.remove('hidden');
+    });
+  }
+  btn.textContent = isExpanded ? '▶' : '▼';
+}
+
+function toggleTrend(id) {
+  const row = document.getElementById('trend-' + id);
+  if (!row) { console.warn('找不到元素:', 'trend-' + id); return; }
+
+  const isHidden = row.classList.contains('hidden');
+  if (isHidden) {
+    row.classList.remove('hidden');
+    row.classList.add('show');
+    // 延迟初始化图表（等待DOM显示）
+    setTimeout(() => initChart(id), 50);
+  } else {
+    row.classList.add('hidden');
+    row.classList.remove('show');
+  }
+}
+
+function initChart(id) {
+  if (chartInst[id]) return;
+
+  let rates, title, chartDates, tDates, orderQty, returnQty;
+  if (id.startsWith('p-')) {
+    const pid = parseInt(id.replace('p-', ''));
+    const product = products.find(p => p.id === pid);
+    rates = product.productDailyRates;
+    title = product.brand + ' · ' + product.name;
+    chartDates = product.t10Dates;
+    tDates = product.tDates;
+    orderQty = product.productOrderQty;
+    returnQty = product.productReturnQty;
+  } else {
+    const sid = id.replace('s-', '');
+    const parentProduct = products.find(p => p.skus.some(s => s.id === sid));
+    if (!parentProduct) return;
+    const sku = parentProduct.skus.find(s => s.id === sid);
+    if (!sku) return;
+    rates = sku.dailyRates;
+    title = sku.skuCode;
+    chartDates = parentProduct.t10Dates;
+    tDates = parentProduct.tDates;
+    orderQty = sku.orderQty;
+    returnQty = sku.returnQty;
+  }
+
+  const avg = parseFloat((rates.reduce((a,b)=>a+b,0)/rates.length).toFixed(1));
+  const lineColor = avg > 40 ? '#ff4d4f' : avg > 35 ? '#faad14' : '#ff6b35';
+  const domId = 'chart-' + id;
+  const dom = document.getElementById(domId);
+  if (!dom) return;
+
+  const chart = echarts.init(dom);
+  chartInst[id] = chart;
+
+  chart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(255,255,255,0.96)',
+      borderColor: '#e8e8e8',
+      borderWidth: 1,
+      textStyle: { color: '#333', fontSize: 12 },
+      formatter: p => {
+        const i = p[0].dataIndex;
+        const tDate = tDates[i];
+        const t10Date = chartDates[i];
+        const oq = orderQty[i];
+        const rq = returnQty[i];
+        const rate = rates[i];
+        return `<div style="font-size:12px;line-height:1.7;text-align:left;">
+          <strong style="font-size:13px;">${t10Date}（${dayLabels[i]}）</strong><br/>
+          <span style="color:#888;">${tDate}实发数量：</span>${oq}<br/>
+          <span style="color:#888;">${t10Date}实退数量：</span>${rq}<br/>
+          <span style="color:#888;">T+${currentPeriod}实发退货率：</span><span style="color:${lineColor};font-weight:600;">${rate}%</span>
+        </div>`;
+      }
+    },
+    grid: { left: 45, right: 15, top: 10, bottom: 25 },
+    xAxis: { type: 'category', data: chartDates, axisLabel: { color: '#999', fontSize: 10, interval: 9 }, axisLine: { lineStyle: { color: '#e8e8e8' } } },
+    yAxis: { type: 'value', axisLabel: { color: '#999', fontSize: 10, formatter: '{value}%' }, axisLine: { lineStyle: { color: '#e8e8e8' } }, splitLine: { lineStyle: { color: '#f5f5f5' } } },
+    series: [{
+      name: title,
+      data: rates,
+      type: 'line',
+      smooth: true,
+      lineStyle: { color: lineColor, width: 2 },
+      itemStyle: { color: lineColor },
+      areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+        { offset: 0, color: lineColor === '#ff4d4f' ? 'rgba(255,77,79,0.18)' : 'rgba(255,107,53,0.18)' },
+        { offset: 1, color: 'rgba(255,107,53,0.02)' }
+      ])},
+      markLine: {
+        silent: true,
+        symbol: 'none',
+        lineStyle: { color: '#ff4d4f', type: 'dashed', width: 1 },
+        data: [{ yAxis: 40, label: { formatter: '异常线 40%', color: '#ff4d4f', fontSize: 10 } }]
+      }
+    }]
+  });
+}
+
+// 初始化
+buildTable();
+
+// 窗口resize时重绘
+window.addEventListener('resize', () => {
+  Object.values(chartInst).forEach(c => c.resize());
+});
+
+// ============ 退货率异常上涨预警 ============
+const warnConfig = { delta: 2, minOrder: 10 };
+
+function openWarnConfig() {
+  document.getElementById('warnDelta').value = warnConfig.delta;
+  document.getElementById('warnMinOrder').value = warnConfig.minOrder;
+  document.getElementById('warnModal').classList.add('show');
+}
+function closeWarnConfig() {
+  document.getElementById('warnModal').classList.remove('show');
+}
+function saveWarnConfig() {
+  const d = parseFloat(document.getElementById('warnDelta').value);
+  const m = parseInt(document.getElementById('warnMinOrder').value);
+  if (isNaN(d) || d < 0) { alert('请输入有效的预警上涨比例'); return; }
+  if (isNaN(m) || m < 0) { alert('请输入有效的免除预警下单件数'); return; }
+  warnConfig.delta = d;
+  warnConfig.minOrder = m;
+  closeWarnConfig();
+  checkWarning();
+}
+
+// 扫描所有商品/SKU的每日环比，找出满足条件的异常项
+function scanWarning() {
+  // 同步保存当前输入值
+  warnConfig.delta = parseFloat(document.getElementById('warnDelta').value) || warnConfig.delta;
+  warnConfig.minOrder = parseInt(document.getElementById('warnMinOrder').value) || warnConfig.minOrder;
+
+  const delta = warnConfig.delta;
+  const minOrder = warnConfig.minOrder;
+  // 按T+10日期分组
+  const groups = {}; // { t10Date: [{code, rate, delta, tDate}] }
+
+  // 商品级扫描
+  products.forEach(p => {
+    for (let i = 1; i < p.productDailyRates.length; i++) {
+      const diff = parseFloat((p.productDailyRates[i] - p.productDailyRates[i-1]).toFixed(1));
+      if (diff >= delta && p.productOrderQty[i] > minOrder) {
+        const t10Date = p.t10Dates[i];
+        if (!groups[t10Date]) groups[t10Date] = [];
+        groups[t10Date].push({
+          code: p.productCode,
+          rate: p.productDailyRates[i].toFixed(1),
+          delta: diff.toFixed(1),
+          tDate: p.tDates[i]
+        });
+      }
+    }
+    // SKU级扫描
+    p.skus.forEach(sku => {
+      for (let i = 1; i < sku.dailyRates.length; i++) {
+        const diff = parseFloat((sku.dailyRates[i] - sku.dailyRates[i-1]).toFixed(1));
+        if (diff >= delta && sku.orderQty[i] > minOrder) {
+          const t10Date = p.t10Dates[i];
+          if (!groups[t10Date]) groups[t10Date] = [];
+          groups[t10Date].push({
+            code: sku.skuCode,
+            rate: sku.dailyRates[i].toFixed(1),
+            delta: diff.toFixed(1),
+            tDate: p.tDates[i]
+          });
+        }
+      }
+    });
+  });
+
+  // 渲染飞书通知卡片
+  const body = document.getElementById('notifyBody');
+  const dates = Object.keys(groups).sort();
+
+  if (dates.length === 0) {
+    body.innerHTML = `<div class="notify-empty">✅ 当前数据未触发预警<br/><span style="font-size:12px;">（环比上涨 ≥ ${delta}% 且 T日下单 > ${minOrder}件）</span></div>`;
+  } else {
+    let html = '';
+    dates.forEach(date => {
+      const items = groups[date];
+      html += `<div class="notify-date-group">`;
+      html += `<div class="notify-date-title">${date} 退货率异常上涨商品</div>`;
+      items.forEach(it => {
+        html += `<div class="notify-item">
+          <span class="code">款号：${it.code}</span>
+          <span>退货率：<span class="rate">${it.rate}%</span></span>
+          <span class="delta">（上涨${it.delta}%）</span>
+        </div>`;
+      });
+      html += `</div>`;
+    });
+    body.innerHTML = html;
+  }
+
+  document.getElementById('notifyMask').classList.add('show');
+}
+
+function closeNotify() {
+  document.getElementById('notifyMask').classList.remove('show');
+}
+
+// 页面加载时检查是否有预警，更新按钮状态
+function checkWarning() {
+  const delta = warnConfig.delta;
+  const minOrder = warnConfig.minOrder;
+  let count = 0;
+  products.forEach(p => {
+    let found = false;
+    for (let i = 1; i < p.productDailyRates.length; i++) {
+      const diff = p.productDailyRates[i] - p.productDailyRates[i-1];
+      if (diff >= delta && p.productOrderQty[i] > minOrder) { found = true; break; }
+    }
+    if (!found) {
+      for (let s = 0; s < p.skus.length && !found; s++) {
+        const sku = p.skus[s];
+        for (let i = 1; i < sku.dailyRates.length; i++) {
+          const diff = sku.dailyRates[i] - sku.dailyRates[i-1];
+          if (diff >= delta && sku.orderQty[i] > minOrder) { found = true; break; }
+        }
+      }
+    }
+    if (found) count++;
+  });
+  const btn = document.getElementById('warnBtn');
+  if (count > 0) {
+    btn.classList.add('has-alert');
+  } else {
+    btn.classList.remove('has-alert');
+  }
+  btn.innerHTML = '🔔 预警设置';
+}
+
+// 初始检查
+checkWarning();
+</script>
+
+</body>
+</html>
